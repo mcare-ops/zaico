@@ -23,20 +23,18 @@ def load_data():
 def save_data(data):
     os.makedirs(BACKUP_DIR, exist_ok=True)
     
-    # --- 日本時間を取得 ---
+    # 日本時間を取得
     now_jst = datetime.now(JST) 
-    timestamp_str = now_jst.strftime('%Y/%m/%d %H:%M:%S') # 中身用
-    file_timestamp = now_jst.strftime('%Y%m%d_%H%M%S')    # ファイル名用
+    timestamp_str = now_jst.strftime('%Y/%m/%d %H:%M:%S')
+    file_timestamp = now_jst.strftime('%Y%m%d_%H%M%S')
     
     # データをDataFrameに変換
     df = pd.DataFrame(list(data.items()), columns=['品目', '在庫数']).set_index('品目')
     
-    # 保存処理（最新用とバックアップ用）
+    # 保存処理
     for path in [DATA_FILE, f"{BACKUP_DIR}/stock_{file_timestamp}.csv"]:
         with open(path, 'w', encoding='utf-8-sig') as f:
-            # 1行目に日本時間を書き込む
             f.write(f"記録日時(JST)：,{timestamp_str}\n")
-            # 2行目以降にデータを書き込む
             df.to_csv(f)
 
 # 初期化
@@ -48,9 +46,9 @@ if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide")
-st.title("かに大将 在庫管理ボード")
+st.title("🦀 かに大将 在庫管理ボード")
 
-# 20秒経過判定（自動保存も日本時間で計算）
+# 20秒経過判定
 if st.session_state.needs_save and st.session_state.last_changed_time:
     if datetime.now(JST) - st.session_state.last_changed_time > timedelta(seconds=20):
         save_data(st.session_state.stock)
@@ -62,4 +60,29 @@ cols = st.columns(3)
 items = list(st.session_state.stock.items())
 
 for i, (item, count) in enumerate(items):
-    with cols
+    # 【修正箇所】cols[i % 3] の後ろにコロンを付けました
+    with cols[i % 3]:
+        with st.container(border=True):
+            st.write(f"**{item}**")
+            
+            if count <= 5:
+                st.markdown(f"## :red[{count}]")
+            else:
+                st.markdown(f"## {count}")
+            
+            new_val = st.number_input(
+                "在庫数", 
+                min_value=0, 
+                value=int(count), 
+                key=f"input_{item}", 
+                label_visibility="collapsed"
+            )
+            
+            if new_val != count:
+                st.session_state.stock[item] = new_val
+                st.session_state.last_changed_time = datetime.now(JST)
+                st.session_state.needs_save = True
+                st.rerun()
+
+# --- サイドバー ---
+with st.sidebar:
