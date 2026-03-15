@@ -19,8 +19,9 @@ def get_device_info():
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
+            # 順番を維持して読み込む
             df = pd.read_csv(DATA_FILE, header=1, index_col=0)
-            return df.to_dict()['在庫数']
+            return {index: row['在庫数'] for index, row in df.iterrows()}
         except: pass
     return {"ズワイガニ (800g)": 0, "ズワイガニ (1kg)": 0, "イカ": 0}
 
@@ -35,33 +36,19 @@ def save_data(data, info):
             f.write(f"記録日時(JST)：,{timestamp_str}, 更新端末：,{info}\n")
             df.to_csv(f)
 
-# アプリ設定（サイドバーを最初から閉じ、画面を広く使う）
+# アプリ設定
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="collapsed")
 
 # セッション初期化
-if 'show_admin' not in st.session_state:
-    st.session_state.show_admin = False
-if 'stock' not in st.session_state:
-    st.session_state.stock = load_data()
-if 'needs_save' not in st.session_state:
-    st.session_state.needs_save = False
+if 'show_admin' not in st.session_state: st.session_state.show_admin = False
+if 'stock' not in st.session_state: st.session_state.stock = load_data()
+if 'needs_save' not in st.session_state: st.session_state.needs_save = False
 
-# デザインCSS
+# CSS
 st.markdown("""
     <style>
-    div.stButton > button {
-        width: 100% !important;
-        height: 50px !important;
-        font-weight: bold !important;
-    }
-    /* 管理メニューを囲む枠 */
-    .admin-box {
-        padding: 20px;
-        border: 2px solid #f0f2f6;
-        border-radius: 10px;
-        background-color: #fafafa;
-        margin-top: 20px;
-    }
+    div.stButton > button { width: 100% !important; font-weight: bold !important; }
+    .sort-btn { font-size: 12px !important; height: 30px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -80,11 +67,10 @@ def sync_data():
     if st.session_state.needs_save:
         save_data(st.session_state.stock, current_info)
         st.session_state.needs_save = False
-        st.toast("在庫を保存しました")
+        st.toast("在庫・並び順を保存しました")
 
-    # 在庫表示エリア
-    cols = st.columns(3)
     items = list(st.session_state.stock.items())
+    cols = st.columns(3)
     for i, (item, count) in enumerate(items):
         with cols[i % 3]:
             with st.container(border=True):
@@ -98,58 +84,69 @@ def sync_data():
                     st.rerun()
 
 sync_data()
-
 st.divider()
 
-# --- 管理メニューの表示スイッチ ---
-# ボタンを押すごとに show_admin を True/False 切り替える
-btn_label = "🔼 管理メニューを閉じる" if st.session_state.show_admin else "⚙️ 管理メニューを開く"
+# --- 管理メニューの開閉スイッチ ---
+btn_label = "🔼 並び替え・管理メニューを閉じる" if st.session_state.show_admin else "⚙️ 並び替え・品目管理を開く"
 if st.button(btn_label):
     st.session_state.show_admin = not st.session_state.show_admin
     st.rerun()
 
-# --- 管理メニュー本体 (メイン画面に表示) ---
+# --- 管理メニュー本体 ---
 if st.session_state.show_admin:
     with st.container(border=True):
-        st.subheader("⚙️ 管理設定")
+        st.subheader("↕️ 品目の並び替え")
+        items_list = list(st.session_state.stock.items())
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("### ➕ 品目の追加・削除")
-            name = st.text_input("新しい品目名")
-            if st.button("この品目を追加"):
-                if name and name not in st.session_state.stock:
-                    st.session_state.stock[name] = 0
-                    st.session_state.needs_save = True
-                    st.rerun()
-            
-            st.divider()
-            target = st.selectbox("削除する品目を選択", [""] + list(st.session_state.stock.keys()))
-            if st.button("この品目を削除"):
-                if target:
-                    del st.session_state.stock[target]
+        for i, (name, val) in enumerate(items_list):
+            c1, c2, c3, c4 = st.columns([4, 1, 1, 2])
+            with c1: st.write(f"**{name}**")
+            with c2:
+                if i > 0: # 一番上でなければ「上へ」ボタン
+                    if st.button("▲", key=f"up_{name}"):
+                        items_list[i], items_list[i-1] = items_list[i-1], items_list[i]
+                        st.session_state.stock = dict(items_list)
+                        st.session_state.needs_save = True
+                        st.rerun()
+            with c3:
+                if i < len(items_list) - 1: # 一番下でなければ「下へ」ボタン
+                    if st.button("▼", key=f"down_{name}"):
+                        items_list[i], items_list[i+1] = items_list[i+1], items_list[i]
+                        st.session_state.stock = dict(items_list)
+                        st.session_state.needs_save = True
+                        st.rerun()
+            with c4:
+                if st.button("🗑️ 削除", key=f"del_{name}"):
+                    del st.session_state.stock[name]
                     st.session_state.needs_save = True
                     st.rerun()
 
-        with col2:
-            st.write("### 🔄 CSVから復元")
-            up = st.file_uploader("バックアップCSVを選択", type="csv")
+        st.divider()
+        st.subheader("➕ 新しい品目を追加")
+        new_name = st.text_input("品目名を入力")
+        if st.button("✨ 追加実行"):
+            if new_name and new_name not in st.session_state.stock:
+                st.session_state.stock[new_name] = 0
+                st.session_state.needs_save = True
+                st.rerun()
+
+        st.divider()
+        st.subheader("📊 履歴の保存・復元")
+        col_dl, col_up = st.columns(2)
+        with col_dl:
+            if os.path.exists(BACKUP_DIR):
+                files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
+                if files:
+                    selected = st.selectbox("履歴ファイル", files)
+                    with open(f"{BACKUP_DIR}/{selected}", "rb") as f:
+                        st.download_button("📥 ダウンロード", f, file_name=selected)
+        with col_up:
+            up = st.file_uploader("CSVから復元", type="csv")
             if up:
                 try:
                     df_p = pd.read_csv(up, header=1, index_col=0)
-                    st.dataframe(df_p)
-                    if st.button("このデータで上書き復元"):
-                        st.session_state.stock = df_p.to_dict()['在庫数']
+                    if st.button("✅ このデータで復元"):
+                        st.session_state.stock = {idx: row['在庫数'] for idx, row in df_p.iterrows()}
                         st.session_state.needs_save = True
                         st.rerun()
-                except: st.error("CSVの形式が正しくありません")
-
-        st.divider()
-        st.write("### 📊 過去の履歴をダウンロード")
-        if os.path.exists(BACKUP_DIR):
-            files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
-            if files:
-                selected = st.selectbox("ダウンロードするファイルを選択", files)
-                with open(f"{BACKUP_DIR}/{selected}", "rb") as f:
-                    st.download_button("📥 CSVダウンロード", f, file_name=selected)
+                except: st.error("形式不備")
