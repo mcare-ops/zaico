@@ -53,7 +53,7 @@ if st.session_state.needs_save and st.session_state.last_changed_time:
     if datetime.now(JST) - st.session_state.last_changed_time > timedelta(seconds=20):
         save_data(st.session_state.stock)
         st.session_state.needs_save = False
-        st.toast("CSVバックアップを日本時間で保存しました！")
+        st.toast("CSVバックアップを自動保存しました！")
 
 # --- メイン画面 ---
 cols = st.columns(3)
@@ -69,7 +69,6 @@ for i, (item, count) in enumerate(items):
             else:
                 st.markdown(f"## {count}")
             
-            # 【修正箇所】カッコを正しく閉じました
             new_val = st.number_input(
                 "在庫数", 
                 min_value=0, 
@@ -88,6 +87,7 @@ for i, (item, count) in enumerate(items):
 with st.sidebar:
     st.header("管理メニュー")
     
+    # ➕ 品目管理
     with st.expander("➕ 品目を追加・削除する"):
         new_name = st.text_input("新しい品目名")
         if st.button("品目追加"):
@@ -107,8 +107,31 @@ with st.sidebar:
                 st.session_state.needs_save = True
                 st.rerun()
 
+    # 🔄 在庫復元（確認画面付き）
+    with st.expander("🔄 CSVから在庫を復元"):
+        uploaded_file = st.file_uploader("CSVを選択", type="csv")
+        if uploaded_file is not None:
+            try:
+                # プレビュー用に読み込み
+                df_preview = pd.read_csv(uploaded_file, header=1, index_col=0)
+                st.write("📋 復元される内容:")
+                st.dataframe(df_preview, use_container_width=True)
+                
+                # 確認の警告と実行ボタン
+                st.warning("⚠️ 現在の在庫データがすべて上書きされます。よろしいですか？")
+                if st.button("✅ はい、復元を実行します"):
+                    new_stock = df_preview.to_dict()['在庫数']
+                    st.session_state.stock = new_stock
+                    st.session_state.last_changed_time = datetime.now(JST)
+                    st.session_state.needs_save = True
+                    st.success("在庫を復元しました！")
+                    st.rerun()
+            except Exception as e:
+                st.error("エラー: CSVの形式が正しくありません")
+
     st.divider()
 
+    # 💾 保存ステータス
     if st.session_state.needs_save:
         wait = timedelta(seconds=20) - (datetime.now(JST) - st.session_state.last_changed_time)
         sec = int(max(0, wait.total_seconds()))
@@ -122,6 +145,7 @@ with st.sidebar:
 
     st.divider()
 
+    # 📊 履歴ダウンロード
     st.subheader("📊 履歴(CSV)の保存")
     if os.path.exists(BACKUP_DIR):
         files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
