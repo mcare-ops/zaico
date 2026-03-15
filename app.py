@@ -57,7 +57,7 @@ if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide")
-st.title("🦀 かに大将 在庫管理ボード")
+st.title("かに大将 在庫管理ボード")
 
 # 現在の端末情報を取得
 current_device = get_device_info()
