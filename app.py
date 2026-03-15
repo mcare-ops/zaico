@@ -46,7 +46,7 @@ if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide")
-st.title("🦀 かに大将 在庫管理ボード")
+st.title("かに大将 在庫管理ボード")
 
 # 20秒経過判定
 if st.session_state.needs_save and st.session_state.last_changed_time:
