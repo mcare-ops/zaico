@@ -10,7 +10,8 @@ BACKUP_DIR = "backups"
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
-            df = pd.read_csv(DATA_FILE, index_col=0)
+            # 日時行を飛ばして読み込む(header=1)
+            df = pd.read_csv(DATA_FILE, header=1, index_col=0)
             return df.to_dict()['在庫数']
         except:
             pass
@@ -18,10 +19,21 @@ def load_data():
 
 def save_data(data):
     os.makedirs(BACKUP_DIR, exist_ok=True)
+    # 現在時刻を取得
+    now = datetime.now()
+    timestamp_str = now.strftime('%Y/%m/%d %H:%M:%S')
+    file_timestamp = now.strftime('%Y%m%d_%H%M%S')
+    
+    # データをDataFrameに変換
     df = pd.DataFrame(list(data.items()), columns=['品目', '在庫数']).set_index('品目')
-    df.to_csv(DATA_FILE, encoding='utf-8-sig')
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    df.to_csv(f"{BACKUP_DIR}/stock_{timestamp}.csv", encoding='utf-8-sig')
+    
+    # 保存処理（2回実行：最新用とバックアップ用）
+    for path in [DATA_FILE, f"{BACKUP_DIR}/stock_{file_timestamp}.csv"]:
+        with open(path, 'w', encoding='utf-8-sig') as f:
+            # 1行目に日時を書き込む
+            f.write(f"記録日時：,{timestamp_str}\n")
+            # 2行目以降に在庫データを書き込む
+            df.to_csv(f)
 
 # 初期化
 if 'stock' not in st.session_state:
@@ -32,7 +44,7 @@ if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide")
-st.title("🦀 かに大将 在庫管理ボード")
+st.title("かに大将 在庫管理ボード")
 
 # 20秒経過判定（自動保存）
 if st.session_state.needs_save and st.session_state.last_changed_time:
@@ -73,7 +85,7 @@ for i, (item, count) in enumerate(items):
 with st.sidebar:
     st.header("管理メニュー")
     
-    # 【上に移動】品目管理
+    # ➕ 品目管理（上）
     with st.expander("➕ 品目を追加・削除する"):
         new_name = st.text_input("新しい品目名")
         if st.button("品目追加"):
@@ -95,7 +107,7 @@ with st.sidebar:
 
     st.divider()
 
-    # 【下に移動】保存・履歴管理
+    # 💾 保存・履歴管理（下）
     if st.session_state.needs_save:
         wait = timedelta(seconds=20) - (datetime.now() - st.session_state.last_changed_time)
         sec = int(max(0, wait.total_seconds()))
