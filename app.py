@@ -38,45 +38,50 @@ def save_data(data, info):
 # アプリ設定
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSS修正：左上のボタンだけを白背景に。右上は触らない ---
+# --- CSS修正：特定のボタン（サイドバー開閉）のみをターゲットにする ---
 st.markdown("""
     <style>
-    /* 左上の「サイドバー開閉ボタン」だけを特定して装飾 */
-    button[data-testid="stSidebarCollapseButton"] {
-        background-color: white !important; /* 白背景に変更 */
+    /* 1. 左上の「サイドバーを開く/閉じる」ボタンのみを大きく白くする */
+    /* data-testid を stSidebarCollapseButton に限定 */
+    [data-testid="stSidebarCollapseButton"] button {
+        background-color: white !important;
         color: #333 !important;
         width: 70px !important;
         height: 70px !important;
         border-radius: 50% !important;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.2) !important;
-        border: 2px solid #ddd !important;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.2) !important;
+        border: 2px solid #eeeeee !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        position: fixed !important;
-        left: 20px !important;
-        top: 20px !important;
-        z-index: 999999 !important;
     }
 
-    /* アイコンの色をグレー/黒系に */
-    button[data-testid="stSidebarCollapseButton"] svg {
+    /* 2. ボタンの中のアイコンを大きく黒く */
+    [data-testid="stSidebarCollapseButton"] svg {
         fill: #333 !important;
         width: 35px !important;
         height: 35px !important;
     }
 
-    /* サイドバーが開いている時の位置微調整 */
-    section[data-testid="stSidebar"] button[data-testid="stSidebarCollapseButton"] {
-        position: absolute !important;
-        left: auto !important;
-        right: 10px !important;
-        top: 10px !important;
-        width: 50px !important;
-        height: 50px !important;
+    /* 3. 配置の固定（サイドバーが閉じている時） */
+    div[data-testid="stSidebarCollapseButton"] {
+        position: fixed !important;
+        left: 20px !important;
+        top: 20px !important;
+        z-index: 1000000 !important;
     }
 
-    /* メインエリアの余白 */
+    /* 4. サイドバーが開いている時の「閉じる」ボタンの位置調整 */
+    section[data-testid="stSidebar"] div[data-testid="stSidebarCollapseButton"] {
+        position: absolute !important;
+        left: auto !important;
+        right: 15px !important;
+        top: 15px !important;
+    }
+
+    /* 右上の標準メニュー（三点ドットなど）は触らない（デフォルトに戻る） */
+
+    /* メインエリアの余白を確保してボタンとの被りを防ぐ */
     .main .block-container {
         padding-top: 100px !important;
     }
@@ -124,19 +129,19 @@ sync_data()
 
 # --- サイドバー ---
 with st.sidebar:
-    st.header("⚙️ 管理メニュー")
+    st.header("管理メニュー")
     st.divider()
     
-    with st.expander("➕ 品目の追加・削除"):
-        name = st.text_input("新しい品目")
-        if st.button("追加"):
+    with st.expander("➕ 品目を追加・削除する"):
+        name = st.text_input("新しい品目名")
+        if st.button("追加実行"):
             if name and name not in st.session_state.stock:
                 st.session_state.stock[name] = 0
                 st.session_state.needs_save = True
                 st.rerun()
         st.divider()
-        target = st.selectbox("削除する品目", [""] + list(st.session_state.stock.keys()))
-        if st.button("削除"):
+        target = st.selectbox("削除する品目名", [""] + list(st.session_state.stock.keys()))
+        if st.button("削除実行"):
             if target:
                 del st.session_state.stock[target]
                 st.session_state.needs_save = True
@@ -148,17 +153,17 @@ with st.sidebar:
             try:
                 df_p = pd.read_csv(up, header=1, index_col=0)
                 st.dataframe(df_p)
-                if st.button("復元を実行"):
+                if st.button("復元する"):
                     st.session_state.stock = df_p.to_dict()['在庫数']
                     st.session_state.needs_save = True
                     st.rerun()
             except: st.error("形式不備")
 
     st.divider()
-    st.subheader("📊 履歴の保存")
+    st.subheader("📊 履歴(CSV)の保存")
     if os.path.exists(BACKUP_DIR):
         files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
         if files:
-            selected = st.selectbox("過去データ", files)
+            selected = st.selectbox("保存するファイルを選択", files)
             with open(f"{BACKUP_DIR}/{selected}", "rb") as f:
-                st.download_button("📥 ダウンロード", f, file_name=selected)
+                st.download_button("📥 CSVをダウンロード", f, file_name=selected)
