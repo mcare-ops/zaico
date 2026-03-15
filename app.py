@@ -22,7 +22,7 @@ def load_data():
             df = pd.read_csv(DATA_FILE, header=1, index_col=0)
             return df.to_dict()['在庫数']
         except: pass
-    return {"ズワイガニ800g": 0, "ズワイガニ1kg": 0, "イカ": 0}
+    return {"ズワイガニ (800g)": 0, "ズワイガニ (1kg)": 0, "イカ": 0}
 
 def save_data(data, info):
     os.makedirs(BACKUP_DIR, exist_ok=True)
@@ -38,49 +38,45 @@ def save_data(data, info):
 # アプリ設定
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="expanded")
 
-# --- 【超強力】CSS：あらゆる状態の開閉ボタンを強制的に改造 ---
+# --- CSS修正：左上のボタンだけを白背景に。右上は触らない ---
 st.markdown("""
     <style>
-    /* 1. 全てのサイドバー開閉ボタン（開く・閉じる両方）を対象に */
-    button[kind="headerNoPadding"] {
-        background-color: #FF4B4B !important;
-        color: white !important;
-        width: 75px !important;
-        height: 75px !important;
+    /* 左上の「サイドバー開閉ボタン」だけを特定して装飾 */
+    button[data-testid="stSidebarCollapseButton"] {
+        background-color: white !important; /* 白背景に変更 */
+        color: #333 !important;
+        width: 70px !important;
+        height: 70px !important;
         border-radius: 50% !important;
-        box-shadow: 0px 4px 15px rgba(0,0,0,0.4) !important;
-        transition: all 0.3s ease !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.2) !important;
+        border: 2px solid #ddd !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        border: 2px solid white !important;
-    }
-
-    /* 2. ボタンを画面の目立つ位置に固定（閉じている時） */
-    [data-testid="stSidebarCollapseButton"] {
+        position: fixed !important;
         left: 20px !important;
         top: 20px !important;
-        position: fixed !important;
-        z-index: 9999999 !important;
+        z-index: 999999 !important;
     }
 
-    /* 3. アイコン（>> や ×）の色とサイズを強制上書き */
-    button[kind="headerNoPadding"] svg {
-        fill: white !important;
-        width: 45px !important;
-        height: 45px !important;
-        stroke: white !important;
+    /* アイコンの色をグレー/黒系に */
+    button[data-testid="stSidebarCollapseButton"] svg {
+        fill: #333 !important;
+        width: 35px !important;
+        height: 35px !important;
     }
 
-    /* 4. サイドバーが開いている時の「閉じる」ボタンを目立たせる */
-    section[data-testid="stSidebar"] button[kind="headerNoPadding"] {
+    /* サイドバーが開いている時の位置微調整 */
+    section[data-testid="stSidebar"] button[data-testid="stSidebarCollapseButton"] {
         position: absolute !important;
-        right: -37px !important; /* サイドバーの少し外側へ */
-        top: 20px !important;
-        background-color: #333 !important; /* 開いている時は黒系 */
+        left: auto !important;
+        right: 10px !important;
+        top: 10px !important;
+        width: 50px !important;
+        height: 50px !important;
     }
 
-    /* 余白の調整：ボタンがタイトルに被らないように */
+    /* メインエリアの余白 */
     .main .block-container {
         padding-top: 100px !important;
     }
