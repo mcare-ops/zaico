@@ -35,55 +35,44 @@ def save_data(data, info):
             f.write(f"記録日時(JST)：,{timestamp_str}, 更新端末：,{info}\n")
             df.to_csv(f)
 
-# アプリ設定
-st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="expanded")
-
-# --- 【最終手段】CSS：場所を指定して強制的にデカボタンにする ---
-st.markdown("""
-    <style>
-    /* 左上隅にあるボタン要素すべてを対象に、強制的にスタイルを上書き */
-    .stApp > header + div button, 
-    button[data-testid="stSidebarCollapseButton"] {
-        background-color: white !important;
-        color: #333 !important;
-        width: 80px !important;
-        height: 80px !important;
-        border-radius: 50% !important;
-        box-shadow: 0px 4px 15px rgba(0,0,0,0.3) !important;
-        border: 3px solid #f0f2f6 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        position: fixed !important;
-        left: 20px !important;
-        top: 20px !important;
-        z-index: 9999999 !important;
-    }
-
-    /* アイコン(>> や ×)を特大にする */
-    .stApp > header + div button svg,
-    button[data-testid="stSidebarCollapseButton"] svg {
-        width: 45px !important;
-        height: 45px !important;
-        fill: #333 !important;
-    }
-
-    /* 右上の三点リーダー（設定メニュー）は、この条件に当てはまらないので無視されます */
-
-    /* メインコンテンツがボタンに隠れないよう、上部に大きな余白を作る */
-    .main .block-container {
-        padding-top: 110px !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# アプリ設定：サイドバーの状態をセッションで管理
+st.set_page_config(page_title="かに大将 在庫管理", layout="wide")
 
 # セッション初期化
+if 'sidebar_state' not in st.session_state:
+    st.session_state.sidebar_state = "expanded"
 if 'stock' not in st.session_state:
     st.session_state.stock = load_data()
 if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
-st.title("かに大将 在庫管理ボード")
+# --- メイン画面のボタンをデザインするCSS ---
+st.markdown("""
+    <style>
+    /* 画面上部の自作ボタンを大きくする */
+    div.stButton > button {
+        width: 100% !important;
+        height: 60px !important;
+        font-size: 24px !important;
+        font-weight: bold !important;
+        background-color: white !important;
+        border: 3px solid #f0f2f6 !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.1) !important;
+        border-radius: 10px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 画面最上部に管理メニュー切り替えボタンを設置 ---
+# これを押すとサイドバーが強制的に開いたり閉じたりします
+if st.button("⚙️ 管理メニュー を表示 / 非表示"):
+    if st.session_state.sidebar_state == "expanded":
+        st.session_state.sidebar_state = "collapsed"
+    else:
+        st.session_state.sidebar_state = "expanded"
+    st.rerun()
+
+st.title("🦀 かに大将 在庫管理ボード")
 
 # --- リアルタイム反映 ---
 @st.fragment(run_every="10s")
@@ -116,9 +105,14 @@ def sync_data():
 
 sync_data()
 
-# --- サイドバー ---
+# --- サイドバー (セッション状態を反映) ---
 with st.sidebar:
     st.header("⚙️ 管理メニュー")
+    # ここに閉じボタン（サイドバー内）も設置
+    if st.button("✖ メニューを閉じる"):
+        st.session_state.sidebar_state = "collapsed"
+        st.rerun()
+    
     st.divider()
     
     with st.expander("➕ 品目の追加・削除"):
