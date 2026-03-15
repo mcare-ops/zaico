@@ -38,41 +38,49 @@ def save_data(data, info):
 # アプリ設定
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSSで「>>」ボタンをドデカく赤く改造 ---
+# --- 【超強力】CSS：あらゆる状態の開閉ボタンを強制的に改造 ---
 st.markdown("""
     <style>
-    /* 1. 開くボタンと閉じるボタンの両方を赤く巨大化 */
-    [data-testid="stSidebarCollapseButton"] {
+    /* 1. 全てのサイドバー開閉ボタン（開く・閉じる両方）を対象に */
+    button[kind="headerNoPadding"] {
         background-color: #FF4B4B !important;
         color: white !important;
-        width: 80px !important;
-        height: 80px !important;
+        width: 75px !important;
+        height: 75px !important;
         border-radius: 50% !important;
-        left: 20px !important;
-        top: 20px !important;
-        position: fixed !important;
-        z-index: 1000000 !important;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.3) !important;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.4) !important;
+        transition: all 0.3s ease !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
+        border: 2px solid white !important;
     }
 
-    /* 2. アイコン(>> や ×)の色とサイズ */
-    [data-testid="stSidebarCollapseButton"] svg {
+    /* 2. ボタンを画面の目立つ位置に固定（閉じている時） */
+    [data-testid="stSidebarCollapseButton"] {
+        left: 20px !important;
+        top: 20px !important;
+        position: fixed !important;
+        z-index: 9999999 !important;
+    }
+
+    /* 3. アイコン（>> や ×）の色とサイズを強制上書き */
+    button[kind="headerNoPadding"] svg {
         fill: white !important;
         width: 45px !important;
         height: 45px !important;
+        stroke: white !important;
     }
 
-    /* 3. サイドバーが開いている時の「閉じる」ボタンの位置調整 */
-    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
+    /* 4. サイドバーが開いている時の「閉じる」ボタンを目立たせる */
+    section[data-testid="stSidebar"] button[kind="headerNoPadding"] {
         position: absolute !important;
-        left: 230px !important; /* サイドバーの右端付近に配置 */
+        right: -37px !important; /* サイドバーの少し外側へ */
         top: 20px !important;
+        background-color: #333 !important; /* 開いている時は黒系 */
     }
 
-    /* 4. メインタイトルの位置をボタンと被らないように下げる */
+    /* 余白の調整：ボタンがタイトルに被らないように */
     .main .block-container {
         padding-top: 100px !important;
     }
@@ -100,7 +108,7 @@ def sync_data():
     if st.session_state.needs_save:
         save_data(st.session_state.stock, current_info)
         st.session_state.needs_save = False
-        st.toast("在庫を更新・保存しました")
+        st.toast("在庫を保存しました")
 
     cols = st.columns(3)
     items = list(st.session_state.stock.items())
@@ -141,12 +149,14 @@ with st.sidebar:
     with st.expander("🔄 CSVから復元"):
         up = st.file_uploader("CSVを選択", type="csv")
         if up:
-            df_p = pd.read_csv(up, header=1, index_col=0)
-            st.dataframe(df_p)
-            if st.button("復元を実行"):
-                st.session_state.stock = df_p.to_dict()['在庫数']
-                st.session_state.needs_save = True
-                st.rerun()
+            try:
+                df_p = pd.read_csv(up, header=1, index_col=0)
+                st.dataframe(df_p)
+                if st.button("復元を実行"):
+                    st.session_state.stock = df_p.to_dict()['在庫数']
+                    st.session_state.needs_save = True
+                    st.rerun()
+            except: st.error("形式不備")
 
     st.divider()
     st.subheader("📊 履歴の保存")
