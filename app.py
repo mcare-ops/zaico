@@ -35,44 +35,37 @@ def save_data(data, info):
             f.write(f"記録日時(JST)：,{timestamp_str}, 更新端末：,{info}\n")
             df.to_csv(f)
 
-# アプリ設定：サイドバーの状態をセッションで管理
-st.set_page_config(page_title="かに大将 在庫管理", layout="wide")
+# アプリ設定（サイドバーを最初から閉じ、画面を広く使う）
+st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="collapsed")
 
 # セッション初期化
-if 'sidebar_state' not in st.session_state:
-    st.session_state.sidebar_state = "expanded"
+if 'show_admin' not in st.session_state:
+    st.session_state.show_admin = False
 if 'stock' not in st.session_state:
     st.session_state.stock = load_data()
 if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
-# --- メイン画面のボタンをデザインするCSS ---
+# デザインCSS
 st.markdown("""
     <style>
-    /* 画面上部の自作ボタンを大きくする */
     div.stButton > button {
         width: 100% !important;
-        height: 60px !important;
-        font-size: 24px !important;
+        height: 50px !important;
         font-weight: bold !important;
-        background-color: white !important;
-        border: 3px solid #f0f2f6 !important;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.1) !important;
-        border-radius: 10px !important;
+    }
+    /* 管理メニューを囲む枠 */
+    .admin-box {
+        padding: 20px;
+        border: 2px solid #f0f2f6;
+        border-radius: 10px;
+        background-color: #fafafa;
+        margin-top: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 画面最上部に管理メニュー切り替えボタンを設置 ---
-# これを押すとサイドバーが強制的に開いたり閉じたりします
-if st.button("⚙️ 管理メニュー を表示 / 非表示"):
-    if st.session_state.sidebar_state == "expanded":
-        st.session_state.sidebar_state = "collapsed"
-    else:
-        st.session_state.sidebar_state = "expanded"
-    st.rerun()
-
-st.title("🦀 かに大将 在庫管理ボード")
+st.title("かに大将 在庫管理ボード")
 
 # --- リアルタイム反映 ---
 @st.fragment(run_every="10s")
@@ -89,6 +82,7 @@ def sync_data():
         st.session_state.needs_save = False
         st.toast("在庫を保存しました")
 
+    # 在庫表示エリア
     cols = st.columns(3)
     items = list(st.session_state.stock.items())
     for i, (item, count) in enumerate(items):
@@ -105,48 +99,57 @@ def sync_data():
 
 sync_data()
 
-# --- サイドバー (セッション状態を反映) ---
-with st.sidebar:
-    st.header("⚙️ 管理メニュー")
-    # ここに閉じボタン（サイドバー内）も設置
-    if st.button("✖ メニューを閉じる"):
-        st.session_state.sidebar_state = "collapsed"
-        st.rerun()
-    
-    st.divider()
-    
-    with st.expander("➕ 品目の追加・削除"):
-        name = st.text_input("新しい品目")
-        if st.button("追加"):
-            if name and name not in st.session_state.stock:
-                st.session_state.stock[name] = 0
-                st.session_state.needs_save = True
-                st.rerun()
-        st.divider()
-        target = st.selectbox("削除する品目", [""] + list(st.session_state.stock.keys()))
-        if st.button("削除"):
-            if target:
-                del st.session_state.stock[target]
-                st.session_state.needs_save = True
-                st.rerun()
+st.divider()
 
-    with st.expander("🔄 CSVから復元"):
-        up = st.file_uploader("CSVを選択", type="csv")
-        if up:
-            try:
-                df_p = pd.read_csv(up, header=1, index_col=0)
-                st.dataframe(df_p)
-                if st.button("復元を実行"):
-                    st.session_state.stock = df_p.to_dict()['在庫数']
+# --- 管理メニューの表示スイッチ ---
+# ボタンを押すごとに show_admin を True/False 切り替える
+btn_label = "🔼 管理メニューを閉じる" if st.session_state.show_admin else "⚙️ 管理メニューを開く"
+if st.button(btn_label):
+    st.session_state.show_admin = not st.session_state.show_admin
+    st.rerun()
+
+# --- 管理メニュー本体 (メイン画面に表示) ---
+if st.session_state.show_admin:
+    with st.container(border=True):
+        st.subheader("⚙️ 管理設定")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("### ➕ 品目の追加・削除")
+            name = st.text_input("新しい品目名")
+            if st.button("この品目を追加"):
+                if name and name not in st.session_state.stock:
+                    st.session_state.stock[name] = 0
                     st.session_state.needs_save = True
                     st.rerun()
-            except: st.error("形式不備")
+            
+            st.divider()
+            target = st.selectbox("削除する品目を選択", [""] + list(st.session_state.stock.keys()))
+            if st.button("この品目を削除"):
+                if target:
+                    del st.session_state.stock[target]
+                    st.session_state.needs_save = True
+                    st.rerun()
 
-    st.divider()
-    st.subheader("📊 履歴の保存")
-    if os.path.exists(BACKUP_DIR):
-        files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
-        if files:
-            selected = st.selectbox("過去データ", files)
-            with open(f"{BACKUP_DIR}/{selected}", "rb") as f:
-                st.download_button("📥 ダウンロード", f, file_name=selected)
+        with col2:
+            st.write("### 🔄 CSVから復元")
+            up = st.file_uploader("バックアップCSVを選択", type="csv")
+            if up:
+                try:
+                    df_p = pd.read_csv(up, header=1, index_col=0)
+                    st.dataframe(df_p)
+                    if st.button("このデータで上書き復元"):
+                        st.session_state.stock = df_p.to_dict()['在庫数']
+                        st.session_state.needs_save = True
+                        st.rerun()
+                except: st.error("CSVの形式が正しくありません")
+
+        st.divider()
+        st.write("### 📊 過去の履歴をダウンロード")
+        if os.path.exists(BACKUP_DIR):
+            files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
+            if files:
+                selected = st.selectbox("ダウンロードするファイルを選択", files)
+                with open(f"{BACKUP_DIR}/{selected}", "rb") as f:
+                    st.download_button("📥 CSVダウンロード", f, file_name=selected)
