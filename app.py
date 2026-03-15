@@ -38,30 +38,33 @@ def save_data(data, info):
             f.write(f"記録日時(JST)：,{timestamp_str}, 更新端末：,{info}\n")
             df.to_csv(f)
 
-# アプリ設定：サイドバーを最初から「開く(expanded)」に固定
+# アプリ設定：サイドバーを最初から「開く」に固定
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="expanded")
 
-# 強引に「>」ボタンを大きく目立たせるCSS
+# サイドバー開閉ボタン(>)を劇的に見やすくするCSS
 st.markdown("""
     <style>
-    /* 左上のサイドバー開閉ボタン(> や >>)を巨大化して赤くする */
+    /* 左上のサイドバー開閉ボタン(>)を大きく、赤く、丸くする */
     [data-testid="stSidebarCollapseButton"] {
         background-color: #ff4b4b !important;
         color: white !important;
-        width: 80px !important;
-        height: 80px !important;
+        width: 60px !important;
+        height: 60px !important;
         border-radius: 50% !important;
-        left: 10px !important;
-        top: 10px !important;
-        z-index: 1000001 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.3) !important;
     }
     [data-testid="stSidebarCollapseButton"] svg {
-        width: 40px !important;
-        height: 40px !important;
+        width: 35px !important;
+        height: 35px !important;
     }
-    /* サイドバーの中身を少し広げる */
-    [data-testid="stSidebar"] {
-        min-width: 300px !important;
+    /* 在庫カードのスタイル調整 */
+    [data-testid="stMetric"] {
+        background-color: #f8f9fb;
+        padding: 15px;
+        border-radius: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -79,16 +82,18 @@ st.title("かに大将 在庫管理ボード")
 def sync_data():
     current_device = get_device_info()
     
+    # 自分が編集中でなければ最新データを読み込む
     if not st.session_state.needs_save:
         new_data = load_data()
         if new_data != st.session_state.stock:
             st.session_state.stock = new_data
             st.rerun()
 
+    # 変更があれば保存
     if st.session_state.needs_save:
         save_data(st.session_state.stock, current_device)
         st.session_state.needs_save = False
-        st.toast("在庫を保存しました")
+        st.toast(f"保存完了 ({current_device})")
 
     cols = st.columns(3)
     items = list(st.session_state.stock.items())
@@ -111,8 +116,6 @@ sync_data()
 # --- サイドバー ---
 with st.sidebar:
     st.header("⚙️ 管理メニュー")
-    # 閉じるボタンが目立たないのでガイドを表示
-    st.caption("※左上の赤いボタン、またはスワイプで閉じます")
     st.write(f"📱 識別: `{get_device_info()}`")
     st.divider()
 
@@ -138,11 +141,20 @@ with st.sidebar:
             try:
                 df_p = pd.read_csv(uploaded_file, header=1, index_col=0)
                 st.dataframe(df_p)
-                if st.button("✅ データを復元"):
+                if st.button("✅ データを復元実行"):
                     st.session_state.stock = df_p.to_dict()['在庫数']
                     st.session_state.needs_save = True
                     st.rerun()
-            except: st.error("形式不備")
+            except: 
+                st.error("CSV形式が正しくありません")
 
     st.divider()
-    st.subheader("📊
+    
+    # 【修正箇所】閉じカッコと引用符を正しく修正
+    st.subheader("📊 履歴(CSV)の保存")
+    if os.path.exists(BACKUP_DIR):
+        files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
+        if files:
+            selected = st.selectbox("過去データを選択", files)
+            with open(f"{BACKUP_DIR}/{selected}", "rb") as f:
+                st.download_button("📥 ダウンロード", f, file_name=selected, key="dl_btn")
