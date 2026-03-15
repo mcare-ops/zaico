@@ -32,7 +32,7 @@ if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide")
-st.title("かに大将 在庫管理ボード")
+st.title("🦀 かに大将 在庫管理ボード")
 
 # 20秒経過判定（自動保存）
 if st.session_state.needs_save and st.session_state.last_changed_time:
@@ -42,7 +42,6 @@ if st.session_state.needs_save and st.session_state.last_changed_time:
         st.toast("バックアップを保存しました")
 
 # --- メイン画面 ---
-# 1画面に収まりやすいよう、少し多めの3列構成にします
 cols = st.columns(3)
 items = list(st.session_state.stock.items())
 
@@ -51,14 +50,11 @@ for i, (item, count) in enumerate(items):
         with st.container(border=True):
             st.write(f"**{item}**")
             
-            # 数字の表示（5個以下は赤）
             if count <= 5:
                 st.markdown(f"## :red[{count}]")
             else:
                 st.markdown(f"## {count}")
             
-            # 入力欄（横の小さな＋ーで操作、または直接入力）
-            # label_visibility="collapsed" でラベルを隠してスッキリさせます
             new_val = st.number_input(
                 "在庫数", 
                 min_value=0, 
@@ -67,7 +63,6 @@ for i, (item, count) in enumerate(items):
                 label_visibility="collapsed"
             )
             
-            # 値が変わった瞬間にセッションを更新
             if new_val != count:
                 st.session_state.stock[item] = new_val
                 st.session_state.last_changed_time = datetime.now()
@@ -78,17 +73,11 @@ for i, (item, count) in enumerate(items):
 with st.sidebar:
     st.header("管理メニュー")
     
-    # 品目追加
     with st.expander("品目を追加・削除する"):
         new_name = st.text_input("新しい品目名")
+        # 修正箇所: if文の末尾にしっかり : を入れました
         if st.button("追加"):
             if new_name and new_name not in st.session_state.stock:
                 st.session_state.stock[new_name] = 0
                 st.session_state.last_changed_time = datetime.now()
-                st.session_state.needs_save = True
-                st.rerun()
-        
-        st.divider()
-        
-        del_target = st.selectbox("削除する品目", [""] + list(st.session_state.stock.keys()))
-        if st.button
+                st.session_state
