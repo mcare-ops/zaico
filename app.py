@@ -38,33 +38,57 @@ def save_data(data, info):
             f.write(f"記録日時(JST)：,{timestamp_str}, 更新端末：,{info}\n")
             df.to_csv(f)
 
-# アプリ設定：サイドバーを最初から「開く」に固定
+# アプリ設定
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="expanded")
 
-# サイドバー開閉ボタン(>)を劇的に見やすくするCSS
+# --- 管理メニューボタン(左上の > )を圧倒的に見やすくするCSS ---
 st.markdown("""
     <style>
-    /* 左上のサイドバー開閉ボタン(>)を大きく、赤く、丸くする */
+    /* 1. 開閉ボタン本体の改造 */
     [data-testid="stSidebarCollapseButton"] {
-        background-color: #ff4b4b !important;
+        background-color: #ff4b4b !important; /* 鮮やかな赤 */
         color: white !important;
-        width: 60px !important;
-        height: 60px !important;
-        border-radius: 50% !important;
+        width: 70px !important;
+        height: 70px !important;
+        border-radius: 15px !important; /* 少し角丸の四角 */
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.3) !important;
+        box-shadow: 0px 4px 15px rgba(255, 75, 75, 0.5) !important;
+        border: 2px solid white !important;
+        transition: all 0.3s ease !important;
+        left: 15px !important;
+        top: 15px !important;
+        position: fixed !important;
+        z-index: 1000002 !important;
     }
+
+    /* 2. ボタンの中のアイコン(> )を大きく */
     [data-testid="stSidebarCollapseButton"] svg {
-        width: 35px !important;
-        height: 35px !important;
+        width: 40px !important;
+        height: 40px !important;
+        fill: white !important;
     }
-    /* 在庫カードのスタイル調整 */
-    [data-testid="stMetric"] {
-        background-color: #f8f9fb;
-        padding: 15px;
-        border-radius: 10px;
+
+    /* 3. ボタンにホバー（またはタッチ）した時の反応 */
+    [data-testid="stSidebarCollapseButton"]:hover {
+        transform: scale(1.1) !important;
+        background-color: #ff0000 !important;
+    }
+
+    /* 4. サイドバーが開いている時の「閉じるボタン」も同様に装飾 */
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
+        background-color: #333 !important; /* 開いている時は落ち着いた色に */
+        width: 50px !important;
+        height: 50px !important;
+        left: auto !important;
+        right: 10px !important;
+        top: 10px !important;
+    }
+    
+    /* タイトルの位置をボタンと被らないように調整 */
+    .main .block-container {
+        padding-top: 80px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -75,21 +99,19 @@ if 'stock' not in st.session_state:
 if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
-st.title("かに大将 在庫管理ボード")
+st.title("🦀 かに大将 在庫管理ボード")
 
 # --- リアルタイム反映ロジック ---
 @st.fragment(run_every="10s")
 def sync_data():
     current_device = get_device_info()
     
-    # 自分が編集中でなければ最新データを読み込む
     if not st.session_state.needs_save:
         new_data = load_data()
         if new_data != st.session_state.stock:
             st.session_state.stock = new_data
             st.rerun()
 
-    # 変更があれば保存
     if st.session_state.needs_save:
         save_data(st.session_state.stock, current_device)
         st.session_state.needs_save = False
@@ -149,8 +171,6 @@ with st.sidebar:
                 st.error("CSV形式が正しくありません")
 
     st.divider()
-    
-    # 【修正箇所】閉じカッコと引用符を正しく修正
     st.subheader("📊 履歴(CSV)の保存")
     if os.path.exists(BACKUP_DIR):
         files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
