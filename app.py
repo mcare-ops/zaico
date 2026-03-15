@@ -41,54 +41,55 @@ def save_data(data, info):
 # アプリ設定
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide", initial_sidebar_state="expanded")
 
-# --- 管理メニューボタン(左上の > )を圧倒的に見やすくするCSS ---
+# --- 開閉ボタン両方を圧倒的に見やすくするCSS ---
 st.markdown("""
     <style>
-    /* 1. 開閉ボタン本体の改造 */
+    /* 【開くボタン】と【閉じるボタン】両方に適用されるデカボタン設定 */
     [data-testid="stSidebarCollapseButton"] {
         background-color: #ff4b4b !important; /* 鮮やかな赤 */
         color: white !important;
-        width: 70px !important;
-        height: 70px !important;
-        border-radius: 15px !important; /* 少し角丸の四角 */
+        width: 80px !important;
+        height: 80px !important;
+        border-radius: 15px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0px 4px 15px rgba(255, 75, 75, 0.5) !important;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.4) !important;
         border: 2px solid white !important;
-        transition: all 0.3s ease !important;
-        left: 15px !important;
-        top: 15px !important;
-        position: fixed !important;
-        z-index: 1000002 !important;
+        transition: all 0.2s ease !important;
+        z-index: 1000005 !important;
     }
 
-    /* 2. ボタンの中のアイコン(> )を大きく */
+    /* ボタンの中のアイコン(> や X )を巨大化 */
     [data-testid="stSidebarCollapseButton"] svg {
-        width: 40px !important;
-        height: 40px !important;
+        width: 45px !important;
+        height: 45px !important;
         fill: white !important;
     }
 
-    /* 3. ボタンにホバー（またはタッチ）した時の反応 */
-    [data-testid="stSidebarCollapseButton"]:hover {
-        transform: scale(1.1) !important;
-        background-color: #ff0000 !important;
+    /* メイン画面側（閉じている時）のボタン配置固定 */
+    .stApp [data-testid="stSidebarCollapseButton"] {
+        position: fixed !important;
+        left: 20px !important;
+        top: 20px !important;
     }
 
-    /* 4. サイドバーが開いている時の「閉じるボタン」も同様に装飾 */
+    /* サイドバー側（開いている時）のボタン配置固定 */
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
-        background-color: #333 !important; /* 開いている時は落ち着いた色に */
-        width: 50px !important;
-        height: 50px !important;
-        left: auto !important;
-        right: 10px !important;
-        top: 10px !important;
+        position: absolute !important;
+        right: -40px !important; /* サイドバーの少し外側へはみ出させて押しやすく */
+        top: 20px !important;
+        background-color: #333 !important; /* 開いている時は黒系にして区別 */
     }
-    
-    /* タイトルの位置をボタンと被らないように調整 */
+
+    /* タッチした時に少し引っ込むアニメーション */
+    [data-testid="stSidebarCollapseButton"]:active {
+        transform: scale(0.9) !important;
+    }
+
+    /* タイトルがボタンに被らないように余白を追加 */
     .main .block-container {
-        padding-top: 80px !important;
+        padding-top: 100px !important;
     }
     </style>
     """, unsafe_allow_html=True)
