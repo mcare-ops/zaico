@@ -46,7 +46,7 @@ if 'needs_save' not in st.session_state:
     st.session_state.needs_save = False
 
 st.set_page_config(page_title="かに大将 在庫管理", layout="wide")
-st.title("🦀 かに大将 在庫管理ボード")
+st.title("かに大将 在庫管理ボード")
 
 # 20秒経過判定
 if st.session_state.needs_save and st.session_state.last_changed_time:
@@ -60,7 +60,6 @@ cols = st.columns(3)
 items = list(st.session_state.stock.items())
 
 for i, (item, count) in enumerate(items):
-    # 【修正箇所】cols[i % 3] の後ろにコロンを付けました
     with cols[i % 3]:
         with st.container(border=True):
             st.write(f"**{item}**")
@@ -72,17 +71,4 @@ for i, (item, count) in enumerate(items):
             
             new_val = st.number_input(
                 "在庫数", 
-                min_value=0, 
-                value=int(count), 
-                key=f"input_{item}", 
-                label_visibility="collapsed"
-            )
-            
-            if new_val != count:
-                st.session_state.stock[item] = new_val
-                st.session_state.last_changed_time = datetime.now(JST)
-                st.session_state.needs_save = True
-                st.rerun()
-
-# --- サイドバー ---
-with st.sidebar:
+                min_value=0,
