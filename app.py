@@ -19,7 +19,6 @@ def get_device_info():
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
-            # 順番を維持して読み込む
             df = pd.read_csv(DATA_FILE, header=1, index_col=0)
             return {index: row['在庫数'] for index, row in df.iterrows()}
         except: pass
@@ -44,109 +43,136 @@ if 'show_admin' not in st.session_state: st.session_state.show_admin = False
 if 'stock' not in st.session_state: st.session_state.stock = load_data()
 if 'needs_save' not in st.session_state: st.session_state.needs_save = False
 
-# CSS
+# --- UI改善用CSS ---
 st.markdown("""
     <style>
-    div.stButton > button { width: 100% !important; font-weight: bold !important; }
-    .sort-btn { font-size: 12px !important; height: 30px !important; }
+    /* 在庫カード内のボタンを押しやすく調整 */
+    .stNumberInput { margin-bottom: 0px !important; }
+    div[data-testid="stVerticalBlock"] > div { gap: 0.5rem !important; }
+    
+    /* 並べ替えボタンのスタイル */
+    .sort-btn-container button {
+        height: 40px !important;
+        padding: 0px !important;
+        font-size: 18px !important;
+        background-color: #f8f9fb !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    /* 管理メニュー用ボタン */
+    .admin-toggle button {
+        width: 100% !important;
+        height: 50px !important;
+        background-color: #f0f2f6 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("かに大将 在庫管理ボード")
+st.title("🦀 かに大将 在庫管理ボード")
 
-# --- リアルタイム反映 ---
+# --- メイン在庫表示 (並べ替えボタン内蔵型) ---
 @st.fragment(run_every="10s")
-def sync_data():
+def sync_and_display():
     current_info = get_device_info()
+    
+    # 外部保存された最新データを読み込み
     if not st.session_state.needs_save:
         new_data = load_data()
         if new_data != st.session_state.stock:
             st.session_state.stock = new_data
             st.rerun()
 
+    # 変更があれば保存
     if st.session_state.needs_save:
         save_data(st.session_state.stock, current_info)
         st.session_state.needs_save = False
-        st.toast("在庫・並び順を保存しました")
+        st.toast("在庫・並び順を更新しました")
 
-    items = list(st.session_state.stock.items())
+    items_list = list(st.session_state.stock.items())
     cols = st.columns(3)
-    for i, (item, count) in enumerate(items):
+    
+    for i, (item, count) in enumerate(items_list):
         with cols[i % 3]:
             with st.container(border=True):
-                st.write(f"**{item}**")
+                # 上部：品目名と並べ替えボタン
+                t_col1, t_col2, t_col3 = st.columns([6, 1.5, 1.5])
+                with t_col1:
+                    st.write(f"**{item}**")
+                with t_col2:
+                    if i > 0: # 上へボタン
+                        if st.button("▲", key=f"up_{item}"):
+                            items_list[i], items_list[i-1] = items_list[i-1], items_list[i]
+                            st.session_state.stock = dict(items_list)
+                            st.session_state.needs_save = True
+                            st.rerun()
+                with t_col3:
+                    if i < len(items_list) - 1: # 下へボタン
+                        if st.button("▼", key=f"down_{item}"):
+                            items_list[i], items_list[i+1] = items_list[i+1], items_list[i]
+                            st.session_state.stock = dict(items_list)
+                            st.session_state.needs_save = True
+                            st.rerun()
+                
+                # 中央：在庫数表示
                 color = "red" if count <= 5 else "black"
-                st.markdown(f"<h2 style='color:{color};'>{count}</h2>", unsafe_allow_html=True)
+                st.markdown(f"<h2 style='color:{color}; margin: 0px;'>{count}</h2>", unsafe_allow_html=True)
+                
+                # 下部：数値入力
                 new_val = st.number_input("数", min_value=0, value=int(count), key=f"in_{item}", label_visibility="collapsed")
                 if new_val != count:
                     st.session_state.stock[item] = new_val
                     st.session_state.needs_save = True
                     st.rerun()
 
-sync_data()
+sync_and_display()
+
 st.divider()
 
-# --- 管理メニューの開閉スイッチ ---
-btn_label = "🔼 並び替え・管理メニューを閉じる" if st.session_state.show_admin else "⚙️ 並び替え・品目管理を開く"
-if st.button(btn_label):
-    st.session_state.show_admin = not st.session_state.show_admin
-    st.rerun()
+# --- 管理メニュー（品目追加や削除など） ---
+with st.container(border=False):
+    col_admin_toggle = st.columns([1])[0]
+    with col_admin_toggle:
+        btn_text = "🔼 設定を閉じる" if st.session_state.show_admin else "⚙️ 新規追加・データ管理"
+        if st.button(btn_text):
+            st.session_state.show_admin = not st.session_state.show_admin
+            st.rerun()
 
-# --- 管理メニュー本体 ---
 if st.session_state.show_admin:
     with st.container(border=True):
-        st.subheader("↕️ 品目の並び替え")
-        items_list = list(st.session_state.stock.items())
-        
-        for i, (name, val) in enumerate(items_list):
-            c1, c2, c3, c4 = st.columns([4, 1, 1, 2])
-            with c1: st.write(f"**{name}**")
-            with c2:
-                if i > 0: # 一番上でなければ「上へ」ボタン
-                    if st.button("▲", key=f"up_{name}"):
-                        items_list[i], items_list[i-1] = items_list[i-1], items_list[i]
-                        st.session_state.stock = dict(items_list)
-                        st.session_state.needs_save = True
-                        st.rerun()
-            with c3:
-                if i < len(items_list) - 1: # 一番下でなければ「下へ」ボタン
-                    if st.button("▼", key=f"down_{name}"):
-                        items_list[i], items_list[i+1] = items_list[i+1], items_list[i]
-                        st.session_state.stock = dict(items_list)
-                        st.session_state.needs_save = True
-                        st.rerun()
-            with c4:
-                if st.button("🗑️ 削除", key=f"del_{name}"):
-                    del st.session_state.stock[name]
+        st.subheader("🛠️ 品目管理")
+        c_add, c_del = st.columns(2)
+        with c_add:
+            new_name = st.text_input("➕ 新しい品目名")
+            if st.button("追加する"):
+                if new_name and new_name not in st.session_state.stock:
+                    st.session_state.stock[new_name] = 0
                     st.session_state.needs_save = True
                     st.rerun()
-
+        with c_del:
+            target = st.selectbox("🗑️ 削除する品目", [""] + list(st.session_state.stock.keys()))
+            if st.button("削除を実行"):
+                if target:
+                    del st.session_state.stock[target]
+                    st.session_state.needs_save = True
+                    st.rerun()
+        
         st.divider()
-        st.subheader("➕ 新しい品目を追加")
-        new_name = st.text_input("品目名を入力")
-        if st.button("✨ 追加実行"):
-            if new_name and new_name not in st.session_state.stock:
-                st.session_state.stock[new_name] = 0
-                st.session_state.needs_save = True
-                st.rerun()
-
-        st.divider()
-        st.subheader("📊 履歴の保存・復元")
-        col_dl, col_up = st.columns(2)
-        with col_dl:
+        st.subheader("🔄 バックアップ・復元")
+        c_dl, c_up = st.columns(2)
+        with c_dl:
             if os.path.exists(BACKUP_DIR):
                 files = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith('.csv')], reverse=True)[:5]
                 if files:
-                    selected = st.selectbox("履歴ファイル", files)
+                    selected = st.selectbox("履歴からDL", files)
                     with open(f"{BACKUP_DIR}/{selected}", "rb") as f:
                         st.download_button("📥 ダウンロード", f, file_name=selected)
-        with col_up:
+        with c_up:
             up = st.file_uploader("CSVから復元", type="csv")
             if up:
                 try:
                     df_p = pd.read_csv(up, header=1, index_col=0)
-                    if st.button("✅ このデータで復元"):
+                    if st.button("✅ 復元を実行"):
                         st.session_state.stock = {idx: row['在庫数'] for idx, row in df_p.iterrows()}
                         st.session_state.needs_save = True
                         st.rerun()
-                except: st.error("形式不備")
+                except: st.error("CSV形式エラー")
